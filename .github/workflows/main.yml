@@ -8,25 +8,21 @@ name: Docker CI
 jobs:
   build-and-test:
     runs-on: ubuntu-22.04
+    env:
+      AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+      AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+      S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
     steps:
       - name: Check out the repository
         uses: actions/checkout@v2
 
-      - name: Set up environment variables
+      - name: Create and populate .env.test file
         run: |
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
-          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> $GITHUB_ENV
-          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> $GITHUB_ENV
-          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> $GITHUB_ENV
-          echo "POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}" >> $GITHUB_ENV
-          echo "POSTGRES_TYPE=${{ secrets.POSTGRES_TYPE }}" >> $GITHUB_ENV
-          echo "POSTGRES_PORT=${{ secrets.POSTGRES_PORT }}" >> $GITHUB_ENV
-          echo "AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }}" >> $GITHUB_ENV
-          echo "AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }}" >> $GITHUB_ENV
-          echo "S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}" >> $GITHUB_ENV
-
-      - name: Create .env.test file
-        run: touch .env.test
+          echo "POSTGRES_DB=photo_db" >> .env.test
+          echo "POSTGRES_USER=postgres" >> .env.test
+          echo "POSTGRES_PASSWORD=password" >> .env.test
+          echo "POSTGRES_HOST=testDb" >> .env.test
+          echo "POSTGRES_PORT=5432" >> .env.test
 
       - name: Build containers
         run: docker compose -f docker-compose.test.yml up --build -d
@@ -40,3 +36,4 @@ jobs:
       - name: Clean up
         if: always()
         run: docker compose -f docker-compose.test.yml down
+
