@@ -4,8 +4,11 @@ import { DataSource } from "typeorm";
 import * as request from 'supertest';
 import { App } from "supertest/types";
 import { AppModule } from "src/app.module";
+import { clearDatabase } from "./utils";
 
 describe('AuthController (e2e)', () => {
+    let username = 'auth'
+    let password = 'password'
     let app: INestApplication<App>;
     let dataSource: DataSource;
 
@@ -18,22 +21,23 @@ describe('AuthController (e2e)', () => {
         await app.init();
 
         dataSource = moduleFixture.get(DataSource);
+        await clearDatabase(dataSource);
     });
 
     it('auth flow (signup -> signin -> signout)', async () => {
         await request(app.getHttpServer())
             .post('/auth/signup')
             .send({
-                username: 'user',
-                password: 'password',
+                username: username,
+                password: password,
             })
             .expect(201);
 
         const { body: { jwtToken } } = await request(app.getHttpServer())
             .post('/auth/signin')
             .send({
-                username: 'user',
-                password: 'password',
+                username: username,
+                password: password,
             })
             .expect(201);
 
@@ -45,15 +49,7 @@ describe('AuthController (e2e)', () => {
     });
 
     afterAll(async () => {
-        const queryRunner = dataSource.createQueryRunner();
-        await queryRunner.connect();
-
-        try {
-            await queryRunner.query(`DELETE FROM sessions;`);
-            await queryRunner.query(`DELETE FROM users;`);
-        } finally {
-            await queryRunner.release();
-        }
+        // await clearDatabase(dataSource);
         await app.close();
     });
 });
