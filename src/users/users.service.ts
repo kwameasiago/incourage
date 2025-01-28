@@ -34,4 +34,14 @@ export class UsersService {
         await transactionalEntityManager.save(User, newUser)
         return newUser
     }
+
+    /**
+     * Finds a user by their ID.
+     * 
+     * @param id - The ID of the user to find.
+     * @returns A promise that resolves to the user object if found, otherwise null.
+     */
+    async findById(id: number) {
+        return await this.userRepository.findOne({ where: { id } });
+    }
 }

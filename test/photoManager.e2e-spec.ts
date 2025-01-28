@@ -5,9 +5,11 @@ import * as request from 'supertest';
 import { App } from "supertest/types";
 import { AppModule } from "src/app.module";
 
-describe('AuthController (e2e)', () => {
+
+describe('PhotoManager (e2e)', () => {
     let app: INestApplication<App>;
     let dataSource: DataSource;
+    let token: string;
 
     beforeAll(async () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -18,36 +20,35 @@ describe('AuthController (e2e)', () => {
         await app.init();
 
         dataSource = moduleFixture.get(DataSource);
+        const { body: { jwtToken } } = await request(app.getHttpServer())
+        .post('/auth/signup')
+        .send({
+            username: 'somems',
+            password: 'somsad',
+        })
+        .expect(201);
+        token = jwtToken
+        
     });
 
-    it('auth flow (signup -> signin -> signout)', async () => {
-        await request(app.getHttpServer())
-            .post('/auth/signup')
-            .send({
-                username: 'user',
-                password: 'password',
-            })
-            .expect(201);
 
-        const { body: { jwtToken } } = await request(app.getHttpServer())
-            .post('/auth/signin')
-            .send({
-                username: 'user',
-                password: 'password',
-            })
-            .expect(201);
+    it('Test auth gour for photo-manager endpoint', async () => {
+        return await request(app.getHttpServer())
+            .get('/photo-manager')
+            .expect(401);
+    });
 
-        await request(app.getHttpServer())
-            .post('/auth/signout')
-            .set('Authorization', `Bearer ${jwtToken}`)
-            .send({})
-            .expect(201);
+    it('Test photo-manager endpoint', async () => {
+        return await request(app.getHttpServer())
+            .get('/photo-manager')
+            .set('Authorization', `Bearer ${token}`)
+            .expect(404);
     });
 
     afterAll(async () => {
         const queryRunner = dataSource.createQueryRunner();
         await queryRunner.connect();
-
+    
         try {
             await queryRunner.query(`DELETE FROM sessions;`);
             await queryRunner.query(`DELETE FROM users;`);
@@ -56,4 +57,5 @@ describe('AuthController (e2e)', () => {
         }
         await app.close();
     });
-});
+
+})

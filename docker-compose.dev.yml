@@ -31,4 +31,4 @@ volumes:
 networks:
   incourage-dev:
     driver: bridge
-    name: my-app-network
+    name: incourage-dev

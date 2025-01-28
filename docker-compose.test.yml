@@ -26,4 +26,4 @@ services:
 networks:
   incourage-test:
     driver: bridge
-    name: my-app-network
+    name: incourage-test
