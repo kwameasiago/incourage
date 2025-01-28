@@ -5,6 +5,7 @@ import { AppController } from 'src/app.controller';
 import { AppService } from 'src/app.service';
 import { AuthModule } from 'src/auth/auth.module';
 import { UsersModule } from 'src/users/users.module';
+import { PhotoManagerModule } from './photo-manager/photo-manager.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { UsersModule } from 'src/users/users.module';
     }),
     AuthModule,
     UsersModule,
+    PhotoManagerModule,
   ],
   controllers: [AppController],
   providers: [AppService],
