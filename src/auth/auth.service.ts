@@ -28,7 +28,7 @@ export class AuthService {
      * @returns A promise that resolves to the session object if it exists, or null if it does not.
      */
     async validateSession(user){
-        const session = this.sessionRepository.findOne(({where: {sessionId: user.sessionId}}))
+        const session = this.sessionRepository.findOne(({where: {id: user.sessionId}}))
         return session
     }
     /**
@@ -44,7 +44,6 @@ export class AuthService {
         await this.ensureUserDoesNotExist(username);
 
         const session = await this.createUserAndSession(username, hashedPassword);
-        console.log(session);
 
         const jwtToken = this.createJwtToken(session);
         return { jwtToken };
@@ -70,7 +69,6 @@ export class AuthService {
     private async ensureUserDoesNotExist(username: string) {
         const userExist = await this.userService.findByUsername(username);
         if (userExist) {
-            console.log(userExist);
             throw new HttpException('Username already exists', HttpStatus.BAD_REQUEST);
         }
     }
@@ -103,8 +101,8 @@ export class AuthService {
      */
     private createJwtToken(session: any): string {
         const payload = {
-            userId: session?.user?.public_id,
-            sessionId: session?.sessionId
+            userId: session?.user?.id,
+            sessionId: session?.id
         };
         return this.jwtService.sign(payload);
     }
@@ -121,7 +119,6 @@ export class AuthService {
 
         const user = await this.validateUserCredentials(username, password);
         const session = await this.createSession(user);
-        console.log(session);
 
         const jwtToken = this.generateJwtToken(session);
         return { jwtToken };
@@ -169,14 +166,20 @@ export class AuthService {
      */
     private generateJwtToken(session: any): string {
         const payload = {
-            userId: session.user.public_id,
-            sessionId: session.sessionId
+            userId: session.user.id,
+            sessionId: session.id
         };
         return this.jwtService.sign(payload);
     }
 
+    /**
+     * Asynchronously signs out a user by deleting their session from the session repository.
+     * 
+     * @param {Object} user - The user object containing at least the sessionId to be deleted.
+     * @returns {Promise} - A promise that resolves with the result of the session deletion.
+     */
     async signOut(user){
-        return await this.sessionRepository.delete({sessionId: user.sessionId})
+        return await this.sessionRepository.delete({id: user.sessionId})
     }
 
 }
