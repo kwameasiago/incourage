@@ -11,14 +11,19 @@ services:
     volumes:
       - .:/usr/src/app 
       - /usr/src/app/node_modules
+    networks:
+      - incourage-test
+      
   testDb:
     image: postgres:12
     ports:
       - "5444:5432"
     env_file:
       - .env.test
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+    networks:
+      - incourage-test
 
-volumes:
-  pgdata:
+networks:
+  incourage-test:
+    driver: bridge
+    name: my-app-network
