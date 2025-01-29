@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Inject,Injectable, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, EntityManager } from 'typeorm';
+import { Repository, EntityManager, Like  } from 'typeorm';
 import { User } from 'src/entities/Users.entity';
 import { Follow } from 'src/entities/Follow.entity';
 import { PhotoManagerService } from 'src/photo-manager/photo-manager.service';
@@ -31,13 +31,18 @@ export class UsersService {
         return user
     }
 
-    async searchByUserName(username){
-        const user = this.findByUsername(username)
-        if(!user){
-            throw new HttpException('No user found', HttpStatus.NOT_FOUND)
+    async searchByUserName(username: string) {
+        const users = await this.userRepository.find({
+            where: { username: Like(`%${username}%`) },
+        });
+    
+        if (!users.length) {
+            throw new HttpException('No user found', HttpStatus.NOT_FOUND);
         }
-        return user
+        
+        return users;
     }
+    
 
     /**
      * Creates a new user within a transaction.
@@ -80,6 +85,9 @@ export class UsersService {
         if (!followingUser || !currentUser) {
             throw new HttpException('Invalid user id', HttpStatus.BAD_REQUEST)
         }
+        if(followingUser.id === currentUser.id){
+            throw new HttpException('User cannot follow self', HttpStatus.BAD_REQUEST)
+        }
         const hasFollowed = await this.followRepository.findOne({
             where: {
                 following: { id: user.user }
@@ -87,7 +95,7 @@ export class UsersService {
         })
         if (!hasFollowed) {
             const newFollow = this.followRepository.create({
-                follower: { id: currentUser.id } as User, // Use only the ID
+                follower: { id: currentUser.id } as User,
                 following: { id: followingUser.id } as User,
             })
             await this.followRepository.save(newFollow)

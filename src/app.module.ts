@@ -24,7 +24,7 @@ import { PhotoManagerModule } from './photo-manager/photo-manager.module';
         database: config.get<string>('POSTGRES_DB'),
         autoLoadEntities: true,
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: true,
+        synchronize: process.env.NODE_ENV == 'production'?false:true,
         migrationsTableName: 'migration',
         migrations: ['src/migration/**/*.ts'],
         cli: {
