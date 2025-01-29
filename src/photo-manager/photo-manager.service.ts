@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Inject, Injectable, forwardRef } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, Like as Search } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { s3 } from '../config/aws.config';
@@ -13,7 +13,7 @@ import { Comment } from 'src/entities/Comment.entity';
 @Injectable()
 export class PhotoManagerService {
   constructor(
-    @Inject(forwardRef(() => UsersService)) 
+    @Inject(forwardRef(() => UsersService))
     private readonly userService: UsersService,
     @InjectRepository(PhotoMetaData)
     private readonly photoMetaDataRepository: Repository<PhotoMetaData>,
@@ -28,13 +28,20 @@ export class PhotoManagerService {
    * Validates image file types.
    * @param files - Array of file objects to validate.
    */
-  private validateImageFiles(files: Array<{ originalname: string; mimetype: string }>): boolean {
+  private validateImageFiles(files: Array<{ originalname: string; mimetype: string, size: number }>): boolean {
     const validImageMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
 
     files.forEach((file) => {
       if (!validImageMimeTypes.includes(file.mimetype)) {
         throw new HttpException(
           `Invalid file type for file "${file.originalname}". Allowed types are: ${validImageMimeTypes.join(', ')}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (file.size > 5242880) {
+        throw new HttpException(
+          `File "${file.originalname}" is too large.`,
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -210,17 +217,17 @@ export class PhotoManagerService {
    */
   async toggleLike(photoId: number, reqUser: any) {
     const { userId } = reqUser;
-  
+
     return this.dataSource.transaction(async (manager) => {
       const photo = await manager.findOne(PhotoMetaData, { where: { id: photoId } });
       if (!photo) {
         throw new HttpException('Photo not found', HttpStatus.NOT_FOUND);
       }
-  
+
       const existingLike = await manager.findOne(Like, {
         where: { user: { id: userId }, photo: { id: photoId } },
       });
-  
+
       if (existingLike) {
 
         await manager.delete(Like, { id: existingLike.id });
@@ -231,71 +238,98 @@ export class PhotoManagerService {
           user: { id: userId },
           photo: { id: photoId },
         });
-  
+
         await manager.save(like);
         return { message: 'Liked successfully' };
       }
     });
   }
-  
 
+/**
+   * Adds a comment to a photo.
+   * @param {Object} params - Parameters for adding a comment.
+   * @param {number} params.photoId - The ID of the photo.
+   * @param {string} params.comment - The comment text.
+   * @param {any} reqUser - The user making the request.
+   * @returns {Promise<Object>} - A success message and the new comment.
+   * @throws {HttpException} - If the photo is not found.
+   */
   async addComment(
     { photoId, comment }: { photoId: number; comment: string },
-    reqUser:any,
+    reqUser: any,
   ) {
     const { userId } = reqUser;
-  
+
     return this.dataSource.transaction(async (manager) => {
       const photo = await manager.findOne(PhotoMetaData, { where: { id: photoId } });
       if (!photo) {
         throw new HttpException('Photo not found', HttpStatus.NOT_FOUND);
       }
-  
+
       const newComment = manager.create(Comment, {
         user: { id: userId },
         photo: { id: photoId },
         comment,
       });
-  
+
       await manager.save(newComment);
       return { message: 'Comment added successfully', comment: newComment };
     });
   }
-  
+
+ /**
+   * Retrieves a photo along with its likes and comments.
+   * @param {number} photoId - The ID of the photo.
+   * @returns {Promise<Object>} - An object containing the photo, likes, comments, and counts.
+   * @throws {Error} - If the photo is not found.
+   */
   async getPhotoWithLikesAndComments(photoId: number) {
     const photo = await this.photoMetaDataRepository.findOne({
-        where: { id: photoId }
+      where: { id: photoId }
     });
 
     if (!photo) {
-        throw new Error(`Photo with id ${photoId} not found`);
+      throw new Error(`Photo with id ${photoId} not found`);
     }
 
     const likes = await this.likeRepository.find({
       where: { photo: photo },
       relations: ['user'],
       select: {
-          user: {
-              id: true,
-              username: true,
-          }
+        user: {
+          id: true,
+          username: true,
+        }
       }
-  });
-  
-  const comments = await this.commentReposittory.find({
+    });
+
+    const comments = await this.commentReposittory.find({
       where: { photo: photo },
       relations: ['user'],
       select: {
-          user: {
-              id: true,
-              username: true,
-          }
+        user: {
+          id: true,
+          username: true,
+        }
       }
-  });
+    });
 
-    return { photo, likes, comments };
+    return { photo, likes, comments, noOfLikes: likes.length, noOfComments: comments.length };
+  }
+
+   /**
+   * Searches for photos by key value using a partial match.
+   * @param {string} searchValue - The search keyword.
+   * @returns {Promise<PhotoMetaData[]>} - A list of matching photos.
+   */
+  async findByKeyLike(searchValue: string): Promise<PhotoMetaData[]> {
+    const photo = await this.photoMetaDataRepository.find({
+      where: { key: Search(`%${searchValue}%`)}
+    });
+    console.log({searchValue})
+    return photo
 }
   
-  
+
 
 }

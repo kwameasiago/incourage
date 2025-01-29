@@ -24,8 +24,17 @@ export class UsersService {
      * @param username - The username of the user to find.
      * @returns A promise that resolves to the user object if found, otherwise null.
      */
-    findByUsername(username: string) {
-        return this.userRepository.findOne({ where: { username } })
+    async findByUsername(username: string) {
+        const user = await this.userRepository.findOne({ where: { username } })
+        return user
+    }
+
+    async searchByUserName(username){
+        const user = this.findByUsername(username)
+        if(!user){
+            throw new HttpException('No user found', HttpStatus.NOT_FOUND)
+        }
+        return user
     }
 
     /**
