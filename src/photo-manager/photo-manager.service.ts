@@ -1,21 +1,28 @@
-import { HttpException, HttpStatus,Inject, Injectable, forwardRef } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable, forwardRef } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { s3 } from '../config/aws.config';
 import { UsersService } from 'src/users/users.service';
 import { PhotoMetaData } from 'src/entities/PhotoMetaData.entity';
+import { Like } from 'src/entities/Like.entity';
+import { Comment } from 'src/entities/Comment.entity';
+
 
 
 @Injectable()
 export class PhotoManagerService {
   constructor(
-    @Inject(forwardRef(() => UsersService)) // Use forwardRef to resolve circular dependency
+    @Inject(forwardRef(() => UsersService)) 
     private readonly userService: UsersService,
     @InjectRepository(PhotoMetaData)
     private readonly photoMetaDataRepository: Repository<PhotoMetaData>,
+    @InjectRepository(Like)
+    private readonly likeRepository: Repository<Like>,
+    @InjectRepository(Comment)
+    private readonly commentReposittory: Repository<Comment>,
     private readonly dataSource: DataSource
-  ) {}
+  ) { }
 
   /**
    * Validates image file types.
@@ -43,7 +50,7 @@ export class PhotoManagerService {
    */
   private async uploadMultipleFilesToS3(files, user) {
     const userInstance = await this.userService.findById(user.userId);
-    if(!userInstance){
+    if (!userInstance) {
       throw new HttpException('Invalid request', HttpStatus.BAD_REQUEST)
     }
     this.validateImageFiles(files);
@@ -95,7 +102,7 @@ export class PhotoManagerService {
       const uploadedFiles = await this.uploadMultipleFilesToS3(files, user);
       return this.photoMetaDataRepository.save(uploadedFiles);
     } catch (error) {
-      
+
       throw new HttpException('An error occurred during file upload', HttpStatus.BAD_GATEWAY);
     }
   }
@@ -139,6 +146,20 @@ export class PhotoManagerService {
   }
 
 
+  /**
+   * Retrieves the photo feed for a user, including photos from users they follow and their own photos.
+   *
+   * @param {number} page - The page number for pagination.
+   * @param {number} limit - The number of photos to retrieve per page.
+   * @param {any} user - The authenticated user object containing the user ID.
+   * @returns {Promise<{ total: number; page: number; limit: number; totalPages: number; data: any[] }>}
+   *          An object containing paginated photo feed data:
+   *          - `total`: Total number of photos in the feed.
+   *          - `page`: Current page number.
+   *          - `limit`: Number of photos per page.
+   *          - `totalPages`: Total number of pages available.
+   *          - `data`: Array of photo metadata.
+   */
   async getFeeds(page: number, limit: number, user: any) {
     const { userId } = user;
     const offset = (page - 1) * limit;
@@ -155,7 +176,6 @@ export class PhotoManagerService {
 
     const photos = await this.dataSource.query(rawQuery, [userId, userId, limit, offset]);
 
-    // Get total count for pagination
     const countQuery = `
         SELECT COUNT(*) as total FROM photo_meta_data
         WHERE user_id IN (
@@ -169,12 +189,113 @@ export class PhotoManagerService {
     const total = totalResult[0]?.total || 0;
 
     return {
-        total: parseInt(total),
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-        data: photos
+      total: parseInt(total),
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      data: photos
     };
+  }
+
+  /**
+   * Toggles the like status of a photo for a given user.
+   * 
+   * If the user has already liked the photo, the like is removed (unliked).
+   * If the user has not liked the photo, a new like is added.
+   * 
+   * @param {number} photoId - The ID of the photo to like or unlike.
+   * @param {any} reqUser - The authenticated user object containing the user ID.
+   * @returns {Promise<{ message: string }>} - A success message indicating the like or unlike action.
+   * @throws {HttpException} - Throws an exception if the photo is not found.
+   */
+  async toggleLike(photoId: number, reqUser: any) {
+    const { userId } = reqUser;
+  
+    return this.dataSource.transaction(async (manager) => {
+      const photo = await manager.findOne(PhotoMetaData, { where: { id: photoId } });
+      if (!photo) {
+        throw new HttpException('Photo not found', HttpStatus.NOT_FOUND);
+      }
+  
+      const existingLike = await manager.findOne(Like, {
+        where: { user: { id: userId }, photo: { id: photoId } },
+      });
+  
+      if (existingLike) {
+
+        await manager.delete(Like, { id: existingLike.id });
+        return { message: 'Unliked successfully' };
+      } else {
+
+        const like = manager.create(Like, {
+          user: { id: userId },
+          photo: { id: photoId },
+        });
+  
+        await manager.save(like);
+        return { message: 'Liked successfully' };
+      }
+    });
+  }
+  
+
+  async addComment(
+    { photoId, comment }: { photoId: number; comment: string },
+    reqUser:any,
+  ) {
+    const { userId } = reqUser;
+  
+    return this.dataSource.transaction(async (manager) => {
+      const photo = await manager.findOne(PhotoMetaData, { where: { id: photoId } });
+      if (!photo) {
+        throw new HttpException('Photo not found', HttpStatus.NOT_FOUND);
+      }
+  
+      const newComment = manager.create(Comment, {
+        user: { id: userId },
+        photo: { id: photoId },
+        comment,
+      });
+  
+      await manager.save(newComment);
+      return { message: 'Comment added successfully', comment: newComment };
+    });
+  }
+  
+  async getPhotoWithLikesAndComments(photoId: number) {
+    const photo = await this.photoMetaDataRepository.findOne({
+        where: { id: photoId }
+    });
+
+    if (!photo) {
+        throw new Error(`Photo with id ${photoId} not found`);
+    }
+
+    const likes = await this.likeRepository.find({
+      where: { photo: photo },
+      relations: ['user'],
+      select: {
+          user: {
+              id: true,
+              username: true,
+          }
+      }
+  });
+  
+  const comments = await this.commentReposittory.find({
+      where: { photo: photo },
+      relations: ['user'],
+      select: {
+          user: {
+              id: true,
+              username: true,
+          }
+      }
+  });
+
+    return { photo, likes, comments };
 }
+  
+  
 
 }

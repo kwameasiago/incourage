@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Post, Param, Req, UseInterceptors, UploadedFiles, UseGuards, Query } from '@nestjs/common';
+import { Controller, Delete, Get, Post, Param, Req, UseInterceptors, UploadedFiles, UseGuards, Query, Body } from '@nestjs/common';
 import { Request } from 'express';
 import { PhotoManagerService } from './photo-manager.service';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -39,6 +39,31 @@ export class PhotoManagerController {
         return this.photoManagerService.getFeeds(page, limit, req.user)
     }
 
+
+    @Post('like')
+    @UseGuards(JwtAuthGuard)
+    async likeUnlikePhoto(
+        @Body() body: {photoId: number},
+        @Req() req:Request    
+    ){
+        return this.photoManagerService.toggleLike(body.photoId, req.user)
+
+    }
+
+    @Post('comment')
+    @UseGuards(JwtAuthGuard)
+    async postComment(
+        @Body() body: {photoId: number, comment: string},
+        @Req() req:Request    
+    ){
+        return this.photoManagerService.addComment(body, req.user)
+    }
+
+    @Get(':id')
+    @UseGuards(JwtAuthGuard)
+    async getCommentAndLikes(@Param('id') id: number){
+        return this.photoManagerService.getPhotoWithLikesAndComments(id)
+    }
 
 
 
