@@ -104,7 +104,7 @@ export class AuthService {
             userId: session?.user?.id,
             sessionId: session?.id
         };
-        return this.jwtService.sign(payload);
+        return this.jwtService.sign(payload, { expiresIn: '1d' });
     }
 
     /**

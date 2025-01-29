@@ -66,6 +66,12 @@ export class PhotoManagerController {
     }
 
 
+    @Get('key/:key')
+    @UseGuards(JwtAuthGuard)
+    async getPhotoByKey(@Param('key') key:string){
+        return this.photoManagerService.findByKeyLike(key)
+    }
+
 
 
 }
