@@ -4,12 +4,13 @@ import { PhotoManagerController } from './photo-manager.controller';
 import { PhotoManagerService } from './photo-manager.service';
 import { UsersModule } from 'src/users/users.module';
 import { PhotoMetaData } from 'src/entities/PhotoMetaData.entity';
-
+import { Like } from 'src/entities/Like.entity';
+import { Comment } from 'src/entities/Comment.entity';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
-    TypeOrmModule.forFeature([PhotoMetaData])
+    TypeOrmModule.forFeature([PhotoMetaData, Like, Comment])
   ],
   controllers: [PhotoManagerController],
   providers: [
