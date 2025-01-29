@@ -4,12 +4,14 @@ import { Repository, EntityManager } from 'typeorm';
 import { User } from 'src/entities/Users.entity';
 import { Follow } from 'src/entities/Follow.entity';
 import { PhotoManagerService } from 'src/photo-manager/photo-manager.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class UsersService {
     constructor(
         @Inject(forwardRef(() => PhotoManagerService))    
-        private readonly photoMetaDataService: PhotoManagerService,   
+        private readonly photoMetaDataService: PhotoManagerService,  
+        private readonly notificationService: NotificationsService, 
         @InjectRepository(User)
         private userRepository: Repository<User>,
 
@@ -89,9 +91,11 @@ export class UsersService {
                 following: { id: followingUser.id } as User,
             })
             await this.followRepository.save(newFollow)
+            await this.notificationService.createNotification(followingUser.id, 'like', `${currentUser?.username || 'A User'}  followed you`);
             return { user: followingUser, status: 'followed' }
         } else {
             await this.followRepository.remove(hasFollowed);
+            await this.notificationService.createNotification(followingUser.id, 'like', `${currentUser?.username || 'A User'}  unfollowed you`);
             return { user: followingUser, status: 'unfollowed' };
         }
     }
