@@ -7,6 +7,7 @@ import { UsersService } from 'src/users/users.service';
 import { PhotoMetaData } from 'src/entities/PhotoMetaData.entity';
 import { Like } from 'src/entities/Like.entity';
 import { Comment } from 'src/entities/Comment.entity';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 
 
@@ -21,7 +22,8 @@ export class PhotoManagerService {
     private readonly likeRepository: Repository<Like>,
     @InjectRepository(Comment)
     private readonly commentReposittory: Repository<Comment>,
-    private readonly dataSource: DataSource
+    private readonly dataSource: DataSource,
+    private readonly notificationService:NotificationsService
   ) { }
 
   /**
@@ -223,6 +225,7 @@ export class PhotoManagerService {
       if (!photo) {
         throw new HttpException('Photo not found', HttpStatus.NOT_FOUND);
       }
+      const userInstance = await this.userService.findById(userId)
 
       const existingLike = await manager.findOne(Like, {
         where: { user: { id: userId }, photo: { id: photoId } },
@@ -231,6 +234,7 @@ export class PhotoManagerService {
       if (existingLike) {
 
         await manager.delete(Like, { id: existingLike.id });
+        await this.notificationService.createNotification(userId, 'like', `${userInstance?.username || 'User'}  unliked your photo`);
         return { message: 'Unliked successfully' };
       } else {
 
@@ -238,6 +242,7 @@ export class PhotoManagerService {
           user: { id: userId },
           photo: { id: photoId },
         });
+        await this.notificationService.createNotification(userId, 'like', `${userInstance?.username || 'User'}  liked your photo`);
 
         await manager.save(like);
         return { message: 'Liked successfully' };
@@ -265,13 +270,14 @@ export class PhotoManagerService {
       if (!photo) {
         throw new HttpException('Photo not found', HttpStatus.NOT_FOUND);
       }
+      const userInstance = await this.userService.findById(userId)
 
       const newComment = manager.create(Comment, {
         user: { id: userId },
         photo: { id: photoId },
         comment,
       });
-
+      await this.notificationService.createNotification(userId, 'like', `${userInstance?.username || 'A User'}  commented on your photo`);
       await manager.save(newComment);
       return { message: 'Comment added successfully', comment: newComment };
     });

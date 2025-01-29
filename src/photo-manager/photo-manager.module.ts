@@ -6,9 +6,10 @@ import { UsersModule } from 'src/users/users.module';
 import { PhotoMetaData } from 'src/entities/PhotoMetaData.entity';
 import { Like } from 'src/entities/Like.entity';
 import { Comment } from 'src/entities/Comment.entity';
-
+import { NotificationsModule } from 'src/notifications/notifications.module';
 @Module({
   imports: [
+    forwardRef(() => NotificationsModule),
     forwardRef(() => UsersModule),
     TypeOrmModule.forFeature([PhotoMetaData, Like, Comment])
   ],
