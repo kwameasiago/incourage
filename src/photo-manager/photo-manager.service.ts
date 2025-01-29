@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus,Inject, Injectable, forwardRef } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { s3 } from '../config/aws.config';
@@ -13,6 +14,7 @@ export class PhotoManagerService {
     private readonly userService: UsersService,
     @InjectRepository(PhotoMetaData)
     private readonly photoMetaDataRepository: Repository<PhotoMetaData>,
+    private readonly dataSource: DataSource
   ) {}
 
   /**
@@ -135,4 +137,44 @@ export class PhotoManagerService {
 
     return images;
   }
+
+
+  async getFeeds(page: number, limit: number, user: any) {
+    const { userId } = user;
+    const offset = (page - 1) * limit;
+
+    const rawQuery = `
+        SELECT * FROM photo_meta_data
+        WHERE user_id IN (
+            SELECT following_id 
+            FROM follow 
+            WHERE follower_id = $1
+        ) OR user_id = $2
+        LIMIT $3 OFFSET $4;
+    `;
+
+    const photos = await this.dataSource.query(rawQuery, [userId, userId, limit, offset]);
+
+    // Get total count for pagination
+    const countQuery = `
+        SELECT COUNT(*) as total FROM photo_meta_data
+        WHERE user_id IN (
+            SELECT following_id 
+            FROM follow 
+            WHERE follower_id = $1
+        ) OR user_id = $2;
+    `;
+
+    const totalResult = await this.dataSource.query(countQuery, [userId, userId]);
+    const total = totalResult[0]?.total || 0;
+
+    return {
+        total: parseInt(total),
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        data: photos
+    };
+}
+
 }
