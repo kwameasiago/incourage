@@ -49,6 +49,13 @@ describe('PhotoManager (e2e)', () => {
             .expect(404);
     });
 
+    it('Test photo-manager feeds endpoint', async () => {
+        return await request(app.getHttpServer())
+            .get('/photo-manager/feeds')
+            .set('Authorization', `Bearer ${token}`)
+            .expect(200);
+    });
+
     afterAll(async () => {
         // await clearDatabase(dataSource);
         await app.close();
