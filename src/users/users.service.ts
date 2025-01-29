@@ -117,8 +117,16 @@ export class UsersService {
      */
     async updateProfile(data: {username: string}, user){
         const currentUser = await this.userRepository.findOne({where: {id: user.userId}})
+        const userExist = await this.findByUsername(data.username)
+        if(userExist){
+            throw new HttpException('User exists', HttpStatus.BAD_REQUEST)
+        }
         if(!currentUser){
-            throw new HttpException('Invalid reques', HttpStatus.BAD_REQUEST)
+            throw new HttpException('Invalid request', HttpStatus.BAD_REQUEST)
+        }
+
+        if(currentUser.username == data.username){
+            throw new HttpException('User name exist', HttpStatus.BAD_REQUEST)
         }
         const updatedUser = this.userRepository.merge(currentUser, data)
         return await this.userRepository.save(updatedUser);
