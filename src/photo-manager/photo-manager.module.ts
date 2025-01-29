@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PhotoManagerController } from './photo-manager.controller';
 import { PhotoManagerService } from './photo-manager.service';
@@ -8,12 +8,13 @@ import { PhotoMetaData } from 'src/entities/PhotoMetaData.entity';
 
 @Module({
   imports: [
-    UsersModule,
+    forwardRef(() => UsersModule),
     TypeOrmModule.forFeature([PhotoMetaData])
   ],
   controllers: [PhotoManagerController],
   providers: [
     PhotoManagerService,
-  ]
+  ],
+  exports: [PhotoManagerService]
 })
 export class PhotoManagerModule {}

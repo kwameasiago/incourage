@@ -1,13 +1,15 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus,Inject, Injectable, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { s3 } from '../config/aws.config';
 import { UsersService } from 'src/users/users.service';
 import { PhotoMetaData } from 'src/entities/PhotoMetaData.entity';
 
+
 @Injectable()
 export class PhotoManagerService {
   constructor(
+    @Inject(forwardRef(() => UsersService)) // Use forwardRef to resolve circular dependency
     private readonly userService: UsersService,
     @InjectRepository(PhotoMetaData)
     private readonly photoMetaDataRepository: Repository<PhotoMetaData>,
@@ -39,6 +41,9 @@ export class PhotoManagerService {
    */
   private async uploadMultipleFilesToS3(files, user) {
     const userInstance = await this.userService.findById(user.userId);
+    if(!userInstance){
+      throw new HttpException('Invalid request', HttpStatus.BAD_REQUEST)
+    }
     this.validateImageFiles(files);
 
     const uploadPromises = files.map((file) => {

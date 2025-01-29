@@ -7,8 +7,8 @@ import { AppModule } from "src/app.module";
 import { clearDatabase } from "./utils";
 
 
-describe('PhotoManager (e2e)', () => {
-    let username = 'photomanager'
+describe('Users (e2e)', () => {
+    let username = 'users'
     let password = 'password'
     let app: INestApplication<App>;
     let dataSource: DataSource;
@@ -35,23 +35,25 @@ describe('PhotoManager (e2e)', () => {
         
     });
 
-
-    it('Test auth gour for photo-manager endpoint', async () => {
+    it('Test following  a none existing user', async () => {
         return await request(app.getHttpServer())
-            .get('/photo-manager')
-            .expect(401);
+            .post('/users/follow')
+            .send({user: 100})
+            .set('Authorization', `Bearer ${token}`)
+            .expect(400);
     });
 
-    it('Test photo-manager endpoint', async () => {
+    it('Test updating profile', async () => {
         return await request(app.getHttpServer())
-            .get('/photo-manager')
+            .put('/users/update-profile')
+            .send({username: "some other name"})
             .set('Authorization', `Bearer ${token}`)
-            .expect(404);
+            .expect(200);
     });
 
     afterAll(async () => {
-        // await clearDatabase(dataSource);
         await app.close();
-    });
+    })
+
 
 })
